@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>机器狗接口联调控制台</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🐕</span>
+      <div>
+        <h1>机器狗接口联调控制台</h1>
+        <p class="subtitle">
+          下发 <code>/robot/api/common</code> · 接收
+          <code>/api/robot/callBackMess</code> ·
+          <code>/api/robot/uploadFile</code>
+        </p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn" id="conn-state" title="SSE 实时连接状态">
+        <span class="dot"></span><span class="conn-text">连接中…</span>
+      </div>
+      <div class="chip-group" id="endpoint-chips"></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ==================== 左：指令按钮 ==================== -->
+    <section class="panel panel-commands">
+      <div class="panel-head">
+        <h2>指令按钮</h2>
+        <button class="btn btn-ghost btn-sm" id="toggle-settings" type="button">机器狗配置</button>
+      </div>
+
+      <div class="settings" id="settings-box" hidden>
+        <label>
+          <span>机器狗地址（base-url）</span>
+          <input type="text" id="set-base-url" placeholder="http://192.168.100.106:8888" />
+        </label>
+        <div class="settings-row">
+          <label>
+            <span>机器狗 SN</span>
+            <input type="text" id="set-sn" placeholder="galilei-001" />
+          </label>
+          <label>
+            <span>超时（毫秒）</span>
+            <input type="number" id="set-timeout" min="1000" step="1000" />
+          </label>
+          <label>
+            <span>失败重试次数</span>
+            <input type="number" id="set-retries" min="0" step="1" />
+          </label>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary btn-sm" id="save-settings" type="button">保存配置</button>
+          <span class="hint" id="settings-hint">保存后立即生效，并写入 data/settings.json</span>
+        </div>
+      </div>
+
+      <div class="status-strip" id="status-strip" hidden></div>
+
+      <div class="btn-grid" id="btn-grid"></div>
+
+      <details class="raw-box">
+        <summary>自定义指令（任意 code / reqJson）</summary>
+        <div class="raw-body">
+          <label>
+            <span>code</span>
+            <input type="number" id="raw-code" placeholder="例如 401" />
+          </label>
+          <label class="grow">
+            <span>reqJson（JSON 或原始字符串，留空为 {}）</span>
+            <textarea id="raw-reqjson" rows="2" placeholder='{"xyz":"1.037,-0.309,1.030"}'></textarea>
+          </label>
+          <button class="btn btn-primary btn-sm" id="raw-send" type="button">下发</button>
+        </div>
+      </details>
+    </section>
+
+    <!-- ==================== 右：消息流 ==================== -->
+    <section class="panel panel-feed">
+      <div class="panel-head">
+        <h2>收到的消息 / 指令记录</h2>
+        <div class="feed-tools">
+          <div class="filters" id="filters">
+            <button class="btn btn-filter is-active" data-filter="all" type="button">全部</button>
+            <button class="btn btn-filter" data-filter="in" type="button">收到</button>
+            <button class="btn btn-filter" data-filter="callBackMess" type="button">回调</button>
+            <button class="btn btn-filter" data-filter="uploadFile" type="button">文件</button>
+            <button class="btn btn-filter" data-filter="command" type="button">下发</button>
+            <button class="btn btn-filter" data-filter="fail" type="button">失败</button>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="auto-scroll" checked />
+            <span>自动滚动</span>
+          </label>
+          <button class="btn btn-ghost btn-sm" id="clear-messages" type="button">清空</button>
+        </div>
+      </div>
+
+      <div class="pending-bar" id="pending-bar" hidden></div>
+
+      <div class="feed" id="feed">
+        <div class="empty">暂无消息。点击左侧按钮下发指令，或等待机器狗回调。</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

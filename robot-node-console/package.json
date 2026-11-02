@@ -1,0 +1,17 @@
+{
+  "name": "robot-node-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "机器狗接口联调控制台（Node）：下发 /robot/api/common 指令，接收 /api/robot/callBackMess 与 /api/robot/uploadFile 回调并实时展示",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

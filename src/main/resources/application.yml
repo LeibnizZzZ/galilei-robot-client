@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8899}
+  shutdown: graceful
+
+robot:
+  # 机器狗唯一标识，用于 MQTT clientId 与 topic 占位符 {sn}
+  sn: ${ROBOT_SN:galilei-001}
+
+  # 机器狗本体 HTTP 接口（中间层 API）
+  api:
+    base-url: ${ROBOT_API_URL:http://192.168.100.106:8888}
+    connect-timeout-seconds: 5
+    read-timeout-seconds: 30
+    # 接口调用失败时的重试次数（不含首次）
+    max-retries: 2
+
+  # MQTT 连接配置，参考 sz-paxini-client
+  mqtt:
+    broker: ${MQTT_BROKER:tcp://127.0.0.1:1883}
+    username: ${MQTT_USERNAME:robot}
+    password: ${MQTT_PASSWORD:robot123}
+    qos: 1
+    # 订阅：平台下发指令
+    command-topic: ${MQTT_COMMAND_TOPIC:robot/{sn}/command}
+    # 发布：指令执行结果 / 异步回调结果
+    reply-topic: ${MQTT_REPLY_TOPIC:robot/{sn}/reply}
+    # 发布：电量 / 状态上报
+    status-topic: ${MQTT_STATUS_TOPIC:robot/{sn}/status}
+
+  # 电量、状态轮询上报
+  status:
+    poll-enabled: ${ROBOT_STATUS_POLL_ENABLED:true}
+    poll-interval-ms: ${ROBOT_STATUS_POLL_INTERVAL_MS:1000}
+
+  # 狗窝（充电桩）位置：服务启动时通过 404 设置狗窝位置与安全位置
+  dog-house:
+    enabled: ${ROBOT_DOG_HOUSE_ENABLED:true}
+    # 狗窝 ID
+    id: ${ROBOT_DOG_HOUSE_ID:1}
+    # 狗窝位置，格式 x,y,z[,w]，其中 z 为朝向；留空则启动时跳过设置
+    xyz: ${ROBOT_DOG_HOUSE_XYZ:}
+    # 安全位置，格式同 xyz；留空则与狗窝位置相同
+    safe-xyz: ${ROBOT_DOG_HOUSE_SAFE_XYZ:}
+
+  # 本地点位：savePoint 保存的点位写入该文件，batchReportPoints 从该文件读取回传
+  point:
+    file: ${ROBOT_POINT_FILE:./data/points.json}
+
+logging:
+  level:
+    mine.kartzan.galilei: INFO
+  file:
+    name: ./logs/galilei-robot-client.log
