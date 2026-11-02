@@ -17,8 +17,8 @@ const DATA_DIR = path.join(ROOT_DIR, 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 const DEFAULTS = {
-  // 默认避开常见的 3000/8080（很多本地工具占用），可用 PORT 或 --port 修改
-  port: Number(process.env.PORT || 3100),
+  // 默认与后端 galilei-robot-client 保持一致（application.yml 的 server.port），可用 PORT 或 --port 修改
+  port: Number(process.env.PORT || 8899),
   host: process.env.HOST || '0.0.0.0',
   // 机器狗本体（中间层 API）地址，指令都发到 {robotBaseUrl}/robot/api/common
   robotBaseUrl: process.env.ROBOT_BASE_URL || 'http://192.168.100.106:8888',

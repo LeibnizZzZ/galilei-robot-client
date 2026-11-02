@@ -20,7 +20,7 @@ const USAGE = `
 用法: node server/index.js [选项]
 
 选项:
-  --port <端口>        监听端口（默认 3100，也可用环境变量 PORT）
+  --port <端口>        监听端口（默认 8899，也可用环境变量 PORT）
   --host <地址>        监听地址（默认 0.0.0.0，机器狗要回调就必须监听 0.0.0.0）
   --robot <地址>       机器狗地址（默认 http://192.168.100.106:8888）
   --sn <编号>          机器狗 SN（默认 galilei-001）
@@ -29,7 +29,7 @@ const USAGE = `
   -h, --help           显示帮助
 
 示例:
-  node server/index.js --port 3100 --robot http://192.168.100.106:8888
+  node server/index.js --port 8899 --robot http://192.168.100.106:8888
 `;
 
 if (process.argv.includes('-h') || process.argv.includes('--help')) {
