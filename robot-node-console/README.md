@@ -5,6 +5,7 @@
 - 下发：`POST {机器狗地址}/robot/api/common`（`{ code, authKey, reqJson }`）
 - 接收：`POST /api/robot/callBackMess`（异步指令执行结果回调）
 - 接收：`POST /api/robot/uploadFile`（业务文件上传通知）
+- 抓图：`GET /api/camera/snapshot`（后端代理摄像头 Digest 认证，返回 jpg 图片）
 - 展示：SSE（`/api/events`）实时推送到页面，无需刷新
 
 > 与同仓库的 Java 版 `galilei-robot-client` 是两套独立实现，互不影响；
@@ -53,6 +54,10 @@ node server/index.js --help
 
 页面里改过的配置会写入 `data/settings.json`，下次启动生效；命令行参数优先级最高。
 
+摄像头（抓图）配置默认值：用户名 `admin`、密码 `gt123456`、通道 `1`（可见光）、端口 `80`，
+摄像头 IP 在页面「摄像头配置」里填写（也可用环境变量 `CAMERA_HOST` / `CAMERA_PORT` /
+`CAMERA_USERNAME` / `CAMERA_PASSWORD` / `CAMERA_CHANNEL` 指定）。
+
 ---
 
 ## 2. 页面功能
@@ -96,6 +101,52 @@ node server/index.js --help
 > 消息流里的回调一定来自真实机器狗：看那条回调的 `ip` / `port` 即可确认来源，
 > 应当是你配置的机器狗地址（例如 `192.168.100.106:8888`）。
 
+### 2.3 摄像头抓图
+
+页面顶部是「摄像头抓图」面板：
+
+- 点「摄像头配置」填写摄像头 IP、端口、用户名、密码、默认通道，保存后写入 `data/settings.json`；
+- 选择通道（`1` 可见光 / `2` 热成像 / `0` 可见光）后点「抓图」，页面显示快照并标注时间与大小；
+- 抓图请求走后端 `GET /api/camera/snapshot`，由后端完成 HTTP **Digest 认证**（
+  `GET /cgi-bin/snapshot.cgi?channel=N`），页面直接拿到图片，不受浏览器 CORS / 认证限制。
+
+对应的 HTTP 接口：
+
+```
+GET /api/camera/snapshot            # 使用配置里的通道
+GET /api/camera/snapshot?channel=2  # 指定通道（1 可见光 / 2 热成像）
+```
+
+成功直接返回 `image/jpeg`；失败返回 JSON `{ "code": 500, "msg": "..." }`。
+
+### 2.4 云台控制（PTZ）
+
+抓图面板右侧是「云台控制」方向键盘（参考接口文档 5.2 云台控制）：
+
+- **↑ ↓ ← →**：**按住持续移动，松开停止**（按下发 `action=start`，松开下发 `action=stop`）；
+- 中间「停」：对四个方向都发一次 `stop`，兜底停止云台；
+- 「速度」下拉框：PTZ 速度，范围 `1-8`（对应文档里的 `arg2`）；
+- 通道跟随顶部抓图的通道选择（`1` 可见光 / `2` 热成像）。
+
+请求走后端 `POST /api/camera/ptz`，由后端完成 Digest 认证后调用：
+
+```
+GET http://<ip>:<port>/cgi-bin/ptz.cgi?action=start&channel=1&code=Up&arg1=0&arg2=4&arg3=0
+GET http://<ip>:<port>/cgi-bin/ptz.cgi?action=stop&channel=1&code=Up&arg1=0&arg2=4&arg3=0
+```
+
+摄像头返回 `OK` 即成功，`ERROR` 则页面提示失败；每次下发也会记入右侧消息流（筛选「云台」）。
+
+对应的 HTTP 接口：
+
+```
+POST /api/camera/ptz
+body: { "action": "start", "code": "Up", "channel": 1, "arg1": 0, "arg2": 4, "arg3": 0 }
+```
+
+`channel` 省略时用配置里的 `cameraChannel`；`code` 支持文档 5.2.2 表格里的任意指令
+（`Up`/`Down`/`Left`/`Right`/`LeftUp`/`ZoomWide`/`ZoomTele`/`SetPreset` 等）。
+
 ---
 
 ## 3. 后端接口一览
@@ -105,6 +156,8 @@ node server/index.js --help
 | GET | `/api/bootstrap` | 页面初始化：配置、指令定义、历史消息、待回执 |
 | GET | `/api/events` | SSE 实时消息流 |
 | POST | `/api/robot/command` | 下发指令，body：`{ code, name?, reqJson }` |
+| GET | `/api/camera/snapshot` | 摄像头抓图（`?channel=`），成功返回 `image/jpeg` |
+| POST | `/api/camera/ptz` | 云台控制：`{ action, code, channel?, arg1?, arg2?, arg3? }` |
 | GET | `/api/messages` | 历史消息（`?limit=`） |
 | POST | `/api/messages/clear` | 清空消息与待回执 |
 | GET | `/api/pendings` | 当前等待回调的异步指令 |
@@ -127,6 +180,8 @@ robot-node-console/
 │   ├── config.js      # 配置（环境变量 / data/settings.json / 命令行参数）
 │   ├── commands.js    # 9 个指令的定义（前端按钮的唯一数据来源）
 │   ├── robotApi.js    # 调用机器狗 POST /robot/api/common
+│   ├── camera.js      # 摄像头抓图（HTTP Digest 认证 + /cgi-bin/snapshot.cgi）
+│   ├── ptz.js         # 云台控制（复用 Digest 认证 + /cgi-bin/ptz.cgi）
 │   ├── routes.js      # 所有 HTTP 接口（含两个回调接口）
 │   ├── store.js       # 内存消息中心 + SSE 广播
 │   └── pending.js     # 异步指令待回执登记（回调结果与原指令对应）

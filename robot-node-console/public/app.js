@@ -17,7 +17,8 @@ const state = {
   filter: 'all',
   autoScroll: true,
   connection: 'connecting',
-  lastStatus: null
+  lastStatus: null,
+  cameraObjectUrl: null
 };
 
 const MAX_RENDER = 300;
@@ -344,6 +345,8 @@ const KIND_LABEL = {
   callBackMess: '回调',
   uploadFile: '文件上传',
   command: '指令',
+  camera: '摄像头',
+  ptz: '云台',
   system: '系统'
 };
 
@@ -353,6 +356,8 @@ function matchFilter(message) {
     case 'callBackMess': return message.kind === 'callBackMess';
     case 'uploadFile': return message.kind === 'uploadFile';
     case 'command': return message.kind === 'command';
+    case 'camera': return message.kind === 'camera';
+    case 'ptz': return message.kind === 'ptz';
     case 'fail': return message.success === false || Boolean(message.error);
     default: return true;
   }
@@ -532,6 +537,15 @@ function renderSettings() {
   $('#set-timeout').value = settings.timeoutMs || 30000;
   $('#set-retries').value = settings.maxRetries || 0;
 
+  // 摄像头配置
+  $('#camera-host').value = settings.cameraHost || '';
+  $('#camera-port').value = settings.cameraPort || 80;
+  $('#camera-username').value = settings.cameraUsername || '';
+  $('#camera-password').value = settings.cameraPassword || '';
+  const channel = String(settings.cameraChannel === undefined ? 1 : settings.cameraChannel);
+  $('#camera-channel').value = channel;
+  $('#camera-default-channel').value = channel;
+
   const chips = $('#endpoint-chips');
   chips.innerHTML = '';
   for (const item of (settings.callbackUrls || []).slice(0, 2)) {
@@ -576,6 +590,200 @@ async function saveSettings() {
     hint.className = 'hint is-err';
     hint.textContent = `保存失败：${err.message}`;
     notify(`保存失败：${err.message}`, 'error');
+  }
+}
+
+// ==================== 摄像头抓图 ====================
+
+async function saveCameraSettings() {
+  const hint = $('#camera-settings-hint');
+  try {
+    const res = await api('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        cameraHost: $('#camera-host').value,
+        cameraPort: Number($('#camera-port').value),
+        cameraUsername: $('#camera-username').value,
+        cameraPassword: $('#camera-password').value,
+        cameraChannel: Number($('#camera-default-channel').value)
+      })
+    });
+    state.settings = Object.assign({}, state.settings, res.data);
+    renderSettings();
+    hint.className = 'hint is-ok';
+    hint.textContent = res.changed.length > 0 ? `已保存：${res.changed.join('、')}` : '没有变化';
+    notify('摄像头配置已保存', 'ok');
+  } catch (err) {
+    hint.className = 'hint is-err';
+    hint.textContent = `保存失败：${err.message}`;
+    notify(`保存失败：${err.message}`, 'error');
+  }
+}
+
+async function takeSnapshot() {
+  const button = $('#camera-snapshot');
+  const view = $('#camera-view');
+  const channel = $('#camera-channel').value;
+
+  button.disabled = true;
+  button.textContent = '抓图中…';
+  try {
+    const response = await fetch(`/api/camera/snapshot?channel=${encodeURIComponent(channel)}&_t=${Date.now()}`, {
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const data = await response.json();
+        message = (data && data.msg) || message;
+      } catch (err) {
+        // 不是 JSON 就用 HTTP 状态
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    if (state.cameraObjectUrl) {
+      URL.revokeObjectURL(state.cameraObjectUrl);
+    }
+    state.cameraObjectUrl = URL.createObjectURL(blob);
+
+    view.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'camera-image';
+    img.alt = '摄像头快照';
+    img.src = state.cameraObjectUrl;
+    const meta = document.createElement('div');
+    meta.className = 'camera-meta';
+    meta.textContent = `通道 ${channel} · ${formatTime(new Date().toISOString())} · ${(blob.size / 1024).toFixed(1)} KB`;
+    view.append(img, meta);
+    notify('抓图成功', 'ok');
+  } catch (err) {
+    if (state.cameraObjectUrl) {
+      URL.revokeObjectURL(state.cameraObjectUrl);
+      state.cameraObjectUrl = null;
+    }
+    view.innerHTML = `<div class="empty">抓图失败：${escapeHtml(err.message)}</div>`;
+    notify(`抓图失败：${err.message}`, 'error');
+  } finally {
+    button.disabled = false;
+    button.textContent = '抓图';
+  }
+}
+
+// ==================== 云台控制（5.2.2） ====================
+
+/**
+ * 单击方向键时云台持续运动的时长（毫秒）。
+ * 点一下就转这么一点，不做「按住持续移动」。
+ */
+const PTZ_STEP_MS = 300;
+
+/** 预置位/开机位置固定使用的预置点号 */
+const PTZ_PRESET_ID = 999;
+
+/**
+ * 下发一次云台控制。
+ * @param {'start'|'stop'} action
+ * @param {string} code Up / Down / Left / Right
+ * @param {boolean} [silent] 为 true 时不弹提示（停止指令失败不打扰用户）
+ */
+async function sendPtz(action, code, silent) {
+  const body = {
+    action,
+    code,
+    channel: $('#camera-channel').value,
+    arg1: 0,
+    arg2: Number($('#ptz-speed').value) || 4,
+    arg3: 0
+  };
+  try {
+    const res = await api('/api/camera/ptz', { method: 'POST', body: JSON.stringify(body) });
+    if (action === 'start' && !silent) {
+      notify(`云台移动：${code}`, 'ok');
+    }
+    return res.data;
+  } catch (err) {
+    if (!silent) {
+      notify(`云台控制失败：${err.message}`, 'error');
+    }
+    return null;
+  }
+}
+
+/**
+ * 给方向键绑定「点一下就转一点」。
+ *
+ * 单击时先下发 start，固定 PTZ_STEP_MS 后再下发 stop；
+ * 不再依赖「松开停止」，避免快速点击时 start/stop 请求乱序、
+ * stop 先到 start 后到导致云台一直转。
+ */
+function bindPtz() {
+  const pad = $('#ptz-pad');
+  if (!pad) {
+    return;
+  }
+
+  const step = (button) => {
+    const code = button.dataset.code;
+    if (button.dataset.active !== '1') {
+      button.dataset.active = '1';
+      button.classList.add('is-active');
+      sendPtz('start', code);
+    }
+    // 连续点击时重置计时，让云台继续转够一小步再停
+    clearTimeout(button._ptzTimer);
+    button._ptzTimer = setTimeout(() => {
+      button.dataset.active = '0';
+      button.classList.remove('is-active');
+      sendPtz('stop', code, true);
+    }, PTZ_STEP_MS);
+  };
+
+  pad.querySelectorAll('.ptz-btn[data-code]').forEach((button) => {
+    button.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      step(button);
+    });
+    button.addEventListener('contextmenu', (event) => event.preventDefault());
+  });
+
+  // 存为预置位：把云台当前位置保存到固定预置点号
+  const savePreset = $('#ptz-set-preset');
+  if (savePreset) {
+    savePreset.addEventListener('click', async () => {
+      savePreset.disabled = true;
+      try {
+        await api('/api/camera/ptz/preset', {
+          method: 'POST',
+          body: JSON.stringify({ presetId: PTZ_PRESET_ID, channel: $('#camera-channel').value })
+        });
+        notify(`已把当前位置存为预置位 ${PTZ_PRESET_ID}`, 'ok');
+      } catch (err) {
+        notify(`保存预置位失败：${err.message}`, 'error');
+      } finally {
+        savePreset.disabled = false;
+      }
+    });
+  }
+
+  // 设为开机位：把该预置点设为云台开机动作
+  const savePowerUp = $('#ptz-set-powerup');
+  if (savePowerUp) {
+    savePowerUp.addEventListener('click', async () => {
+      savePowerUp.disabled = true;
+      try {
+        await api('/api/camera/ptz/powerup', {
+          method: 'POST',
+          body: JSON.stringify({ presetId: PTZ_PRESET_ID, channel: $('#camera-channel').value })
+        });
+        notify(`已把预置位 ${PTZ_PRESET_ID} 设为开机位置`, 'ok');
+      } catch (err) {
+        notify(`设置开机位置失败：${err.message}`, 'error');
+      } finally {
+        savePowerUp.disabled = false;
+      }
+    });
   }
 }
 
@@ -675,6 +883,14 @@ function bindEvents() {
   });
   $('#save-settings').addEventListener('click', saveSettings);
   $('#raw-send').addEventListener('click', sendRaw);
+
+  $('#toggle-camera-settings').addEventListener('click', () => {
+    const box = $('#camera-settings-box');
+    box.hidden = !box.hidden;
+  });
+  $('#save-camera-settings').addEventListener('click', saveCameraSettings);
+  $('#camera-snapshot').addEventListener('click', takeSnapshot);
+  bindPtz();
 
   $('#clear-messages').addEventListener('click', async () => {
     try {

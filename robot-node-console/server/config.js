@@ -29,11 +29,27 @@ const DEFAULTS = {
   // 调用失败后的重试次数（不含首次）
   maxRetries: Number(process.env.ROBOT_MAX_RETRIES || 0),
   // 内存里保留的消息条数上限
-  maxMessages: Number(process.env.MAX_MESSAGES || 500)
+  maxMessages: Number(process.env.MAX_MESSAGES || 500),
+
+  // ===== 摄像头抓图（Digest 认证，大华系 /cgi-bin/snapshot.cgi） =====
+  // 摄像头 IP（留空则页面里填写），也可写成 http://ip:port
+  cameraHost: process.env.CAMERA_HOST || '',
+  // 摄像头端口
+  cameraPort: Number(process.env.CAMERA_PORT || 80),
+  // 默认通道号：1 可见光 / 2 热成像
+  cameraChannel: Number(process.env.CAMERA_CHANNEL || 1),
+  // 认证用户名 / 密码（默认 gt123456）
+  cameraUsername: process.env.CAMERA_USERNAME || 'admin',
+  cameraPassword: process.env.CAMERA_PASSWORD || 'gt123456',
+  // 抓图超时（毫秒）
+  cameraTimeoutMs: Number(process.env.CAMERA_TIMEOUT_MS || 10000)
 };
 
 /** 可以通过页面修改、并持久化到 data/settings.json 的字段 */
-const EDITABLE_KEYS = ['robotBaseUrl', 'robotSn', 'timeoutMs', 'maxRetries'];
+const EDITABLE_KEYS = [
+  'robotBaseUrl', 'robotSn', 'timeoutMs', 'maxRetries',
+  'cameraHost', 'cameraPort', 'cameraChannel', 'cameraUsername', 'cameraPassword', 'cameraTimeoutMs'
+];
 
 function normalizeBaseUrl(url) {
   let value = String(url == null ? '' : url).trim();
@@ -120,6 +136,56 @@ function update(patch) {
         changed.push('maxRetries');
       }
       next.maxRetries = Math.round(retries);
+    }
+  }
+
+  // ===== 摄像头 =====
+  if (patch.cameraHost !== undefined) {
+    const host = String(patch.cameraHost || '').trim();
+    if (host !== next.cameraHost) {
+      changed.push('cameraHost');
+    }
+    next.cameraHost = host;
+  }
+  if (patch.cameraPort !== undefined) {
+    const port = Number(patch.cameraPort);
+    if (Number.isFinite(port) && port > 0) {
+      if (Math.round(port) !== next.cameraPort) {
+        changed.push('cameraPort');
+      }
+      next.cameraPort = Math.round(port);
+    }
+  }
+  if (patch.cameraChannel !== undefined) {
+    const channel = Number(patch.cameraChannel);
+    if (Number.isFinite(channel) && channel >= 0) {
+      if (Math.round(channel) !== next.cameraChannel) {
+        changed.push('cameraChannel');
+      }
+      next.cameraChannel = Math.round(channel);
+    }
+  }
+  if (patch.cameraUsername !== undefined) {
+    const username = String(patch.cameraUsername || '').trim() || DEFAULTS.cameraUsername;
+    if (username !== next.cameraUsername) {
+      changed.push('cameraUsername');
+    }
+    next.cameraUsername = username;
+  }
+  if (patch.cameraPassword !== undefined) {
+    const password = String(patch.cameraPassword == null ? '' : patch.cameraPassword);
+    if (password !== next.cameraPassword) {
+      changed.push('cameraPassword');
+    }
+    next.cameraPassword = password;
+  }
+  if (patch.cameraTimeoutMs !== undefined) {
+    const timeout = Number(patch.cameraTimeoutMs);
+    if (Number.isFinite(timeout) && timeout > 0) {
+      if (Math.round(timeout) !== next.cameraTimeoutMs) {
+        changed.push('cameraTimeoutMs');
+      }
+      next.cameraTimeoutMs = Math.round(timeout);
     }
   }
 

@@ -29,6 +29,94 @@
   </header>
 
   <main class="layout">
+    <!-- ==================== 顶部：摄像头抓图 ==================== -->
+    <section class="panel panel-camera">
+      <div class="panel-head">
+        <h2>摄像头抓图</h2>
+        <div class="camera-tools">
+          <select id="camera-channel" title="通道号：1 可见光 / 2 热成像">
+            <option value="1">1 - 可见光</option>
+            <option value="2">2 - 热成像</option>
+            <option value="0">0 - 可见光(0)</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="camera-snapshot" type="button">抓图</button>
+          <button class="btn btn-ghost btn-sm" id="toggle-camera-settings" type="button">摄像头配置</button>
+        </div>
+      </div>
+
+      <div class="settings" id="camera-settings-box" hidden>
+        <div class="settings-row">
+          <label>
+            <span>摄像头地址（IP）</span>
+            <input type="text" id="camera-host" placeholder="192.168.1.108" />
+          </label>
+          <label>
+            <span>端口</span>
+            <input type="number" id="camera-port" min="1" step="1" placeholder="80" />
+          </label>
+        </div>
+        <div class="settings-row">
+          <label>
+            <span>用户名</span>
+            <input type="text" id="camera-username" placeholder="admin" />
+          </label>
+          <label>
+            <span>密码</span>
+            <input type="text" id="camera-password" placeholder="gt123456" />
+          </label>
+          <label>
+            <span>默认通道</span>
+            <select id="camera-default-channel">
+              <option value="1">1 - 可见光</option>
+              <option value="2">2 - 热成像</option>
+              <option value="0">0 - 可见光(0)</option>
+            </select>
+          </label>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary btn-sm" id="save-camera-settings" type="button">保存配置</button>
+          <span class="hint" id="camera-settings-hint">走摄像头 Digest 认证：/cgi-bin/snapshot.cgi?channel=N</span>
+        </div>
+      </div>
+
+      <div class="camera-stage">
+        <div class="camera-view" id="camera-view">
+          <div class="empty">点击「抓图」从摄像头获取一张快照。</div>
+        </div>
+
+        <!-- 云台控制（5.2.2）：点一下方向键转动一小步 -->
+        <div class="ptz-pad" id="ptz-pad">
+          <div class="ptz-head">
+            <span class="ptz-title">云台控制</span>
+            <label class="ptz-speed">
+              <span>速度</span>
+              <select id="ptz-speed" title="PTZ 速度，范围 1-8">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+          </div>
+          <div class="ptz-grid">
+            <button class="ptz-btn ptz-up" type="button" data-code="Up" title="云台向上">↑</button>
+            <button class="ptz-btn ptz-left" type="button" data-code="Left" title="云台向左">←</button>
+            <button class="ptz-btn ptz-right" type="button" data-code="Right" title="云台向右">→</button>
+            <button class="ptz-btn ptz-down" type="button" data-code="Down" title="云台向下">↓</button>
+          </div>
+          <p class="hint ptz-hint">点一下方向键，云台转动一小步（速度见右上角）</p>
+          <div class="ptz-presets">
+            <button class="btn btn-sm" type="button" id="ptz-set-preset" title="将当前位置设置为预置位 999">设置预置位</button>
+            <button class="btn btn-sm" type="button" id="ptz-set-powerup" title="将预置位 999 设置为开机位置">设置开机位置</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ==================== 左：指令按钮 ==================== -->
     <section class="panel panel-commands">
       <div class="panel-head">
@@ -91,6 +179,8 @@
             <button class="btn btn-filter" data-filter="in" type="button">收到</button>
             <button class="btn btn-filter" data-filter="callBackMess" type="button">回调</button>
             <button class="btn btn-filter" data-filter="uploadFile" type="button">文件</button>
+            <button class="btn btn-filter" data-filter="camera" type="button">抓图</button>
+            <button class="btn btn-filter" data-filter="ptz" type="button">云台</button>
             <button class="btn btn-filter" data-filter="command" type="button">下发</button>
             <button class="btn btn-filter" data-filter="fail" type="button">失败</button>
           </div>

@@ -158,6 +158,98 @@ code { font-family: var(--mono); font-size: 0.92em; }
 .hint.is-ok { color: var(--ok); }
 .hint.is-err { color: var(--err); }
 
+/* ==================== 摄像头抓图 + 云台 ==================== */
+.panel-camera { grid-column: 1 / -1; }
+.camera-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.camera-tools select { width: auto; min-width: 130px; }
+
+.camera-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  align-items: stretch;
+  background: #10131a;
+}
+@media (max-width: 760px) {
+  .camera-stage { grid-template-columns: 1fr; }
+}
+.camera-view {
+  padding: 14px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #10131a;
+  border-right: 1px solid var(--border-soft);
+}
+@media (max-width: 760px) {
+  .camera-view { border-right: none; border-bottom: 1px solid var(--border-soft); }
+}
+.camera-view .empty { color: var(--text-faint); font-size: 13px; text-align: center; }
+.camera-image {
+  max-width: 100%;
+  max-height: 60vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #000;
+}
+.camera-meta { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+/* 云台方向键 */
+.ptz-pad {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #10131a;
+}
+.ptz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ptz-title { font-size: 13px; font-weight: 600; }
+.ptz-speed { flex-direction: row; align-items: center; gap: 6px; }
+.ptz-speed select { width: auto; min-width: 62px; }
+.ptz-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 8px;
+  width: 156px;
+  margin: 0 auto;
+}
+.ptz-btn {
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 1;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background .1s, border-color .1s, transform .05s;
+}
+.ptz-btn:hover { border-color: var(--primary); background: #232936; }
+.ptz-btn:active,
+.ptz-btn.is-active { background: var(--primary); border-color: var(--primary); color: #fff; transform: translateY(1px); }
+.ptz-up { grid-area: 1 / 2; }
+.ptz-left { grid-area: 2 / 1; }
+.ptz-right { grid-area: 2 / 3; }
+.ptz-down { grid-area: 3 / 2; }
+.ptz-hint { text-align: center; }
+.ptz-presets { display: flex; gap: 8px; }
+.ptz-presets .btn { flex: 1; white-space: normal; line-height: 1.3; text-align: center; }
+
 label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); }
 label > span { font-size: 12px; }
 input[type="text"], input[type="number"], select, textarea {
